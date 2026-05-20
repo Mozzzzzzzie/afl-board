@@ -197,43 +197,12 @@ function drawField() {
 }
 
 drawField();
-loadState();
 
 // ─── Player logic ────────────────────────────────────────────────────────────
 let selectedColor = 'white';
 let allPlayers = [];
 let onField = [];
 let pid = 0;
-
-// ── Save & restore ──
-function saveState() {
-  const fieldPositions = onField.map(f => ({
-    id: f.id,
-    x: parseFloat(f.el.style.left),
-    y: parseFloat(f.el.style.top)
-  }));
-  localStorage.setItem('afl_players', JSON.stringify(allPlayers));
-  localStorage.setItem('afl_onfield', JSON.stringify(fieldPositions));
-  localStorage.setItem('afl_pid', pid);
-}
-
-function loadState() {
-  try {
-    const savedPlayers = localStorage.getItem('afl_players');
-    const savedOnField = localStorage.getItem('afl_onfield');
-    const savedPid = localStorage.getItem('afl_pid');
-    if (savedPlayers) allPlayers = JSON.parse(savedPlayers);
-    if (savedPid) pid = parseInt(savedPid);
-    if (savedOnField) {
-      const positions = JSON.parse(savedOnField);
-      positions.forEach(pos => {
-        const p = allPlayers.find(p => p.id === pos.id);
-        if (p) spawnToken(p, pos.x, pos.y);
-      });
-    }
-    renderBench();
-  } catch(e) { console.log('No saved state'); }
-}
 
 function selectColor(c) {
   selectedColor = c;
@@ -249,7 +218,6 @@ function addPlayer() {
   allPlayers.push({ id, name, color: selectedColor });
   input.value = '';
   renderBench();
-  saveState();
 }
 
 function renderBench() {
@@ -274,7 +242,6 @@ function renderBench() {
 
 function placeOnField(p) {
   spawnToken(p, 38 + Math.random() * 24, 42 + Math.random() * 16);
-  saveState();
 }
 
 function spawnToken(p, xPct, yPct) {
@@ -295,14 +262,12 @@ function deletePlayer(id) {
   if (fi !== -1) { onField[fi].el.remove(); onField.splice(fi, 1); }
   allPlayers = allPlayers.filter(p => p.id !== id);
   renderBench();
-  saveState();
 }
 
 function clearAll() {
   onField.forEach(f => f.el.remove());
   onField = [];
   renderBench();
-  saveState();
 }
 
 function makeDraggable(el, id) {
@@ -326,7 +291,7 @@ function makeDraggable(el, id) {
     el.style.top  = Math.max(2, Math.min(98, st + ((t.clientY - sy) / r.height) * 100)) + '%';
   }, { passive: false });
 
-  el.addEventListener('touchend', () => { clearTimeout(longTimer); el.style.zIndex = 5; if (moved) saveState(); }, { passive: true });
+  el.addEventListener('touchend', () => { clearTimeout(longTimer); el.style.zIndex = 5; }, { passive: true });
 
   el.addEventListener('mousedown', e => {
     if (e.button !== 0) return; e.preventDefault();
@@ -338,7 +303,7 @@ function makeDraggable(el, id) {
       el.style.left = Math.max(2, Math.min(98, sl + ((e2.clientX - sx) / r.width) * 100)) + '%';
       el.style.top  = Math.max(2, Math.min(98, st + ((e2.clientY - sy) / r.height) * 100)) + '%';
     };
-    const up = () => { el.style.zIndex = 5; saveState(); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    const up = () => { el.style.zIndex = 5; document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   });
