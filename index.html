@@ -1,127 +1,206 @@
-<script>
-// AFL BOARD SAVE SYSTEM FIXED
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AFL Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f0f0eb;
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 12px 40px; gap: 14px;
+  }
+  h1 { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #999; }
+  .panel { width: min(92vw, 380px); background: white; border-radius: 14px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .panel-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #aaa; margin-bottom: 10px; }
+  .color-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .color-opt { flex: 1; padding: 7px; border-radius: 8px; border: 2px solid transparent; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; }
+  .color-opt.white-opt { background: white; border-color: #e0e0e0; color: #1a1a1a; }
+  .color-opt.white-opt.selected { border-color: #1a1a1a; }
+  .color-opt.red-opt { background: #e63946; color: white; border-color: #e63946; }
+  .color-opt.red-opt.selected { border-color: #c1121f; box-shadow: 0 0 0 2px #c1121f; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .input-row input { flex: 1; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; color: #1a1a1a; background: #fafafa; }
+  .input-row input:focus { border-color: #1a1a1a; background: white; }
+  .add-btn { padding: 9px 18px; background: #1a1a1a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .bench { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bench-chip { display: flex; align-items: center; gap: 5px; background: #f5f5f5; border: 1.5px solid #e8e8e8; border-radius: 20px; padding: 5px 10px 5px 6px; font-size: 12px; font-weight: 600; color: #333; cursor: pointer; }
+  .bench-chip:active { background: #eee; }
+  .bench-chip.on-field { opacity: 0.35; pointer-events: none; }
+  .chip-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #ccc; background: white; flex-shrink: 0; }
+  .chip-dot.red { background: #e63946; border-color: #c1121f; }
+  .remove-x { margin-left: 2px; color: #bbb; font-size: 14px; line-height: 1; cursor: pointer; padding: 0 2px; }
+  .clear-btn { width: 100%; margin-top: 10px; padding: 8px; background: none; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 11px; font-weight: 700; color: #aaa; cursor: pointer; font-family: 'DM Sans', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .save-status { text-align: center; font-size: 11px; color: #aaa; margin-top: 8px; min-height: 16px; }
+  .save-status.saved { color: #2e9e2e; }
+  .save-status.error { color: #e63946; }
 
+  /* Field */
+  #field-wrap { width: min(92vw, 380px); position: relative; }
+  #fieldCanvas { width: 100%; border-radius: 12px; display: block; box-shadow: 0 6px 32px rgba(0,0,0,0.25); }
+  #playerLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+  .player { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; cursor: grab; touch-action: none; user-select: none; z-index: 5; }
+  .player:active { cursor: grabbing; z-index: 20; }
+  .player-circle { width: 36px; height: 36px; border-radius: 50%; background: white; border: 2px solid rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #1a1a1a; box-shadow: 0 2px 6px rgba(0,0,0,0.35); text-align: center; line-height: 1.1; padding: 2px; }
+  .player-circle.red { background: #e63946; color: white; }
+  .player-name { margin-top: 2px; background: rgba(0,0,0,0.65); color: white; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+
+  /* Positions list */
+  .positions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .position-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f9f9f9;
+    border: 1.5px solid #eee;
+    border-radius: 8px;
+    padding: 6px 8px;
+  }
+  .position-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    min-width: 70px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .position-select {
+    flex: 1;
+    border: none;
+    background: none;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    color: #1a1a1a;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* Notes */
+  .notes-textarea {
+    width: 100%;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: #1a1a1a;
+    background: #fafafa;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    line-height: 1.5;
+  }
+  .notes-textarea:focus { border-color: #1a1a1a; background: white; }
+</style>
+</head>
+<body>
+
+<h1>AFL Tactics Board</h1>
+
+<!-- ADD PLAYERS -->
+<div class="panel">
+  <div class="panel-label">Add Player</div>
+  <div class="color-row">
+    <div class="color-opt white-opt selected" id="opt-white" onclick="selectColor('white')">● White</div>
+    <div class="color-opt red-opt" id="opt-red" onclick="selectColor('red')">● Red</div>
+  </div>
+  <div class="input-row">
+    <input type="text" id="name-input" placeholder="Enter name..." maxlength="14"
+           onkeydown="if(event.key==='Enter')addPlayer()">
+    <button class="add-btn" onclick="addPlayer()">Add</button>
+  </div>
+  <div class="panel-label">Tap name to place on field</div>
+  <div class="bench" id="bench"></div>
+  <button class="clear-btn" onclick="clearAll()">Clear Field</button>
+  <div class="save-status" id="save-status"></div>
+</div>
+
+<!-- FIELD -->
+<div id="field-wrap">
+  <canvas id="fieldCanvas"></canvas>
+  <div id="playerLayer"></div>
+</div>
+
+<!-- POSITIONS -->
+<div class="panel">
+  <div class="panel-label">Positions</div>
+  <div class="positions-grid" id="positions-grid"></div>
+</div>
+
+<!-- NOTES -->
+<div class="panel">
+  <div class="panel-label">Coach Notes</div>
+  <textarea class="notes-textarea" id="notes-input" placeholder="Write your game plan, tactics, player instructions..."></textarea>
+  <div class="save-status" id="notes-status"></div>
+</div>
+
+<script>
 const canvas = document.getElementById('fieldCanvas');
 const ctx = canvas.getContext('2d');
 const playerLayer = document.getElementById('playerLayer');
 const saveStatus = document.getElementById('save-status');
+const notesStatus = document.getElementById('notes-status');
 
 const CW = 400, CH = 600;
-canvas.width = CW;
-canvas.height = CH;
-
-const cx = CW / 2, cy = CH / 2;
+canvas.width = CW; canvas.height = CH;
+const cx = CW/2, cy = CH/2;
 const ovalRx = 185, ovalRy = 284;
 const arcR = 178;
 const goalLineTop = cy - ovalRy;
 const goalLineBot = cy + ovalRy;
 
+// AFL positions
+const POSITIONS = [
+  'Full Back', 'Back Pocket L', 'Back Pocket R',
+  'Half Back L', 'Centre Half Back', 'Half Back R',
+  'Wing L', 'Centre', 'Wing R',
+  'Half Fwd L', 'Centre Half Fwd', 'Half Fwd R',
+  'Fwd Pocket L', 'Fwd Pocket R', 'Full Forward',
+  'Ruck', 'Ruck Rover', 'Rover',
+  'Interchange 1', 'Interchange 2', 'Interchange 3', 'Interchange 4'
+];
+
 function drawField() {
   ctx.clearRect(0, 0, CW, CH);
-
-  function ovalPath() {
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, ovalRx, ovalRy, 0, 0, Math.PI * 2);
-  }
-
-  ovalPath();
-  ctx.fillStyle = '#2e9e2e';
-  ctx.fill();
-
-  ctx.save();
-  ovalPath();
-  ctx.clip();
-
-  ctx.strokeStyle = 'white';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-
-  ctx.beginPath();
-  ctx.arc(cx, goalLineTop, arcR, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, goalLineBot, arcR, 0, Math.PI * 2);
-  ctx.stroke();
-
+  function ovalPath() { ctx.beginPath(); ctx.ellipse(cx, cy, ovalRx, ovalRy, 0, 0, Math.PI*2); }
+  ovalPath(); ctx.fillStyle = '#2e9e2e'; ctx.fill();
+  ctx.save(); ovalPath(); ctx.clip();
+  ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, goalLineTop, arcR, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, goalLineBot, arcR, 0, Math.PI*2); ctx.stroke();
   const sqHalf = 89;
-
-  ctx.beginPath();
-  ctx.rect(cx - sqHalf, cy - sqHalf, sqHalf * 2, sqHalf * 2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 35, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.lineWidth = 3.5;
-  ovalPath();
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.rect(cx-sqHalf, cy-sqHalf, sqHalf*2, sqHalf*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 35, 0, Math.PI*2); ctx.stroke();
+  ctx.lineWidth = 3.5; ovalPath(); ctx.stroke();
   ctx.restore();
-
   ctx.strokeStyle = 'white';
-
   const gsW = 74, gsH = 28;
-
   ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.rect(cx - gsW/2, goalLineTop, gsW, gsH);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.rect(cx-gsW/2, goalLineTop, gsW, gsH); ctx.stroke();
   ctx.lineWidth = 4.5;
-
-  ctx.beginPath();
-  ctx.moveTo(cx-23, goalLineTop-20);
-  ctx.lineTo(cx-23, goalLineTop);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx+23, goalLineTop-20);
-  ctx.lineTo(cx+23, goalLineTop);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.moveTo(cx-23, goalLineTop-20); ctx.lineTo(cx-23, goalLineTop); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+23, goalLineTop-20); ctx.lineTo(cx+23, goalLineTop); ctx.stroke();
   ctx.lineWidth = 2.5;
-
-  ctx.beginPath();
-  ctx.moveTo(cx-46, goalLineTop-16);
-  ctx.lineTo(cx-46, goalLineTop);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx+46, goalLineTop-16);
-  ctx.lineTo(cx+46, goalLineTop);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.moveTo(cx-46, goalLineTop-16); ctx.lineTo(cx-46, goalLineTop); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+46, goalLineTop-16); ctx.lineTo(cx+46, goalLineTop); ctx.stroke();
   ctx.lineWidth = 3;
-
-  ctx.beginPath();
-  ctx.rect(cx - gsW/2, goalLineBot - gsH, gsW, gsH);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.rect(cx-gsW/2, goalLineBot-gsH, gsW, gsH); ctx.stroke();
   ctx.lineWidth = 4.5;
-
-  ctx.beginPath();
-  ctx.moveTo(cx-23, goalLineBot);
-  ctx.lineTo(cx-23, goalLineBot+20);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx+23, goalLineBot);
-  ctx.lineTo(cx+23, goalLineBot+20);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.moveTo(cx-23, goalLineBot); ctx.lineTo(cx-23, goalLineBot+20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+23, goalLineBot); ctx.lineTo(cx+23, goalLineBot+20); ctx.stroke();
   ctx.lineWidth = 2.5;
-
-  ctx.beginPath();
-  ctx.moveTo(cx-46, goalLineBot);
-  ctx.lineTo(cx-46, goalLineBot+16);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx+46, goalLineBot);
-  ctx.lineTo(cx+46, goalLineBot+16);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-46, goalLineBot); ctx.lineTo(cx-46, goalLineBot+16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+46, goalLineBot); ctx.lineTo(cx+46, goalLineBot+16); ctx.stroke();
 }
 
 drawField();
@@ -130,396 +209,182 @@ let selectedColor = 'white';
 let allPlayers = [];
 let onField = [];
 let pid = 0;
-let saveTimer = null;
+let positions = {}; // { positionName: playerName }
+let notesTimer = null;
 
-function setStatus(msg, type) {
-  saveStatus.textContent = msg;
-  saveStatus.className = 'save-status ' + (type || '');
+function setStatus(el, msg, type) {
+  el.textContent = msg;
+  el.className = 'save-status ' + (type || '');
+  setTimeout(() => { el.textContent = ''; el.className = 'save-status'; }, 2000);
 }
 
 function saveState() {
   try {
-
-    const positions = onField.map(f => ({
-      id: f.id,
-      x: parseFloat(f.el.style.left),
-      y: parseFloat(f.el.style.top)
+    const fieldPositions = onField.map(f => ({
+      id: f.id, x: parseFloat(f.el.style.left), y: parseFloat(f.el.style.top)
     }));
-
-    const state = {
-      allPlayers,
-      positions,
-      pid
-    };
-
-    localStorage.setItem('afl_state_v2', JSON.stringify(state));
-
-    console.log('Saved:', state);
-
-    setStatus('✓ Saved', 'saved');
-
-    clearTimeout(saveTimer);
-
-    saveTimer = setTimeout(() => {
-      setStatus('');
-    }, 1500);
-
-  } catch (e) {
-
-    console.error(e);
-
-    setStatus('Save failed', 'error');
-  }
+    const notes = document.getElementById('notes-input').value;
+    const state = { allPlayers, fieldPositions, pid, positions, notes };
+    localStorage.setItem('afl_state_v3', JSON.stringify(state));
+    setStatus(saveStatus, '✓ Saved', 'saved');
+  } catch(e) { setStatus(saveStatus, 'Save failed', 'error'); }
 }
 
 function loadState() {
   try {
-
-    const raw = localStorage.getItem('afl_state_v2');
-
-    if (!raw) {
-      console.log('No save found');
-      return;
-    }
-
+    const raw = localStorage.getItem('afl_state_v3');
+    if (!raw) return;
     const state = JSON.parse(raw);
-
-    allPlayers = Array.isArray(state.allPlayers)
-      ? state.allPlayers
-      : [];
-
+    allPlayers = state.allPlayers || [];
     pid = state.pid || 0;
-
-    onField.forEach(f => f.el.remove());
-    onField = [];
-
-    if (Array.isArray(state.positions)) {
-
-      state.positions.forEach(pos => {
-
-        const p = allPlayers.find(pl => pl.id === pos.id);
-
-        if (p) {
-          spawnToken(p, pos.x, pos.y);
-        }
-
-      });
-    }
-
+    positions = state.positions || {};
+    if (state.notes) document.getElementById('notes-input').value = state.notes;
+    (state.fieldPositions || []).forEach(pos => {
+      const p = allPlayers.find(p => p.id === pos.id);
+      if (p) spawnToken(p, pos.x, pos.y);
+    });
     renderBench();
+    renderPositions();
+    setStatus(saveStatus, '✓ Loaded', 'saved');
+  } catch(e) {}
+}
 
-    console.log('Loaded:', state);
+// Notes auto-save
+document.getElementById('notes-input').addEventListener('input', () => {
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(() => { saveState(); setStatus(notesStatus, '✓ Notes saved', 'saved'); }, 800);
+});
 
-    setStatus('✓ Loaded saved data', 'saved');
-
-    setTimeout(() => {
-      setStatus('');
-    }, 1500);
-
-  } catch (e) {
-
-    console.error('Load failed:', e);
-
-    localStorage.removeItem('afl_state_v2');
-
-    setStatus('Save reset', 'error');
-  }
+function renderPositions() {
+  const grid = document.getElementById('positions-grid');
+  grid.innerHTML = '';
+  const playerNames = ['— Unassigned —', ...allPlayers.map(p => p.name)];
+  POSITIONS.forEach(pos => {
+    const row = document.createElement('div');
+    row.className = 'position-row';
+    const label = document.createElement('div');
+    label.className = 'position-name';
+    label.textContent = pos;
+    const sel = document.createElement('select');
+    sel.className = 'position-select';
+    playerNames.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      if (positions[pos] === name) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => { positions[pos] = sel.value; saveState(); };
+    row.appendChild(label); row.appendChild(sel);
+    grid.appendChild(row);
+  });
 }
 
 function selectColor(c) {
   selectedColor = c;
-
-  document.getElementById('opt-white')
-    .classList.toggle('selected', c === 'white');
-
-  document.getElementById('opt-red')
-    .classList.toggle('selected', c === 'red');
+  document.getElementById('opt-white').classList.toggle('selected', c==='white');
+  document.getElementById('opt-red').classList.toggle('selected', c==='red');
 }
 
 function addPlayer() {
-
   const input = document.getElementById('name-input');
-
   const name = input.value.trim();
-
   if (!name) return;
-
   const id = 'p' + (++pid);
-
-  allPlayers.push({
-    id,
-    name,
-    color: selectedColor
-  });
-
+  allPlayers.push({ id, name, color: selectedColor });
   input.value = '';
-
   renderBench();
-
+  renderPositions();
   saveState();
 }
 
 function renderBench() {
-
   const bench = document.getElementById('bench');
-
   bench.innerHTML = '';
-
   allPlayers.forEach(p => {
-
     const onF = onField.find(f => f.id === p.id);
-
     const chip = document.createElement('div');
-
     chip.className = 'bench-chip' + (onF ? ' on-field' : '');
-
     const dot = document.createElement('div');
-
-    dot.className = 'chip-dot' + (p.color === 'red' ? ' red' : '');
-
-    const label = document.createElement('span');
-
-    label.textContent = p.name;
-
+    dot.className = 'chip-dot' + (p.color==='red' ? ' red' : '');
+    const label = document.createElement('span'); label.textContent = p.name;
     const x = document.createElement('span');
-
-    x.className = 'remove-x';
-    x.textContent = '×';
-
-    x.onclick = e => {
-      e.stopPropagation();
-      deletePlayer(p.id);
-    };
-
-    chip.appendChild(dot);
-    chip.appendChild(label);
-    chip.appendChild(x);
-
-    if (!onF) {
-      chip.onclick = () => placeOnField(p);
-    }
-
+    x.className = 'remove-x'; x.textContent = '×';
+    x.onclick = e => { e.stopPropagation(); deletePlayer(p.id); };
+    chip.appendChild(dot); chip.appendChild(label); chip.appendChild(x);
+    if (!onF) chip.onclick = () => placeOnField(p);
     bench.appendChild(chip);
   });
 }
 
 function placeOnField(p) {
-
-  spawnToken(
-    p,
-    38 + Math.random() * 24,
-    42 + Math.random() * 16
-  );
-
+  spawnToken(p, 38 + Math.random()*24, 42 + Math.random()*16);
   saveState();
 }
 
 function spawnToken(p, xPct, yPct) {
-
-  if (onField.find(f => f.id === p.id)) return;
-
   const el = document.createElement('div');
-
   el.className = 'player';
-
-  el.style.left = xPct + '%';
-  el.style.top = yPct + '%';
-
-  const initials = p.name
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .substring(0,2)
-    .toUpperCase();
-
-  el.innerHTML = `
-    <div class="player-circle ${p.color==='red'?'red':''}">
-      ${initials}
-    </div>
-    <div class="player-name">${p.name}</div>
-  `;
-
+  el.style.left = xPct + '%'; el.style.top = yPct + '%';
+  const initials = p.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  el.innerHTML = `<div class="player-circle ${p.color==='red'?'red':''}">${initials}</div><div class="player-name">${p.name}</div>`;
   makeDraggable(el, p.id);
-
   playerLayer.appendChild(el);
-
-  onField.push({
-    id: p.id,
-    el
-  });
-
+  onField.push({ id: p.id, el });
   renderBench();
 }
 
 function deletePlayer(id) {
-
   const fi = onField.findIndex(f => f.id === id);
-
-  if (fi !== -1) {
-
-    onField[fi].el.remove();
-
-    onField.splice(fi, 1);
-  }
-
+  if (fi !== -1) { onField[fi].el.remove(); onField.splice(fi, 1); }
   allPlayers = allPlayers.filter(p => p.id !== id);
-
-  renderBench();
-
-  saveState();
+  renderBench(); renderPositions(); saveState();
 }
 
 function clearAll() {
-
   onField.forEach(f => f.el.remove());
-
   onField = [];
-
-  renderBench();
-
-  saveState();
+  renderBench(); saveState();
 }
 
 function makeDraggable(el, id) {
-
-  let sx, sy, sl, st;
-  let moved = false;
-  let longTimer = null;
-
-  const getRect = () =>
-    playerLayer.getBoundingClientRect();
-
+  let sx, sy, sl, st, moved = false, longTimer = null;
+  const getRect = () => playerLayer.getBoundingClientRect();
   el.addEventListener('touchstart', e => {
-
     const t = e.touches[0];
-
-    sx = t.clientX;
-    sy = t.clientY;
-
-    sl = parseFloat(el.style.left);
-    st = parseFloat(el.style.top);
-
-    moved = false;
-
-    el.style.zIndex = 20;
-
+    sx = t.clientX; sy = t.clientY;
+    sl = parseFloat(el.style.left); st = parseFloat(el.style.top);
+    moved = false; el.style.zIndex = 20;
     longTimer = setTimeout(() => {
-
-      if (!moved) {
-
-        el.remove();
-
-        onField = onField.filter(f => f.id !== id);
-
-        renderBench();
-
-        saveState();
-      }
-
+      if (!moved) { el.remove(); onField = onField.filter(f=>f.id!==id); renderBench(); saveState(); }
     }, 650);
-
   }, { passive: true });
-
   el.addEventListener('touchmove', e => {
-
-    clearTimeout(longTimer);
-
-    moved = true;
-
-    e.stopPropagation();
-
-    const t = e.touches[0];
-
-    const r = getRect();
-
-    el.style.left =
-      Math.max(
-        2,
-        Math.min(
-          98,
-          sl + ((t.clientX - sx) / r.width) * 100
-        )
-      ) + '%';
-
-    el.style.top =
-      Math.max(
-        2,
-        Math.min(
-          98,
-          st + ((t.clientY - sy) / r.height) * 100
-        )
-      ) + '%';
-
+    clearTimeout(longTimer); moved = true; e.stopPropagation();
+    const t = e.touches[0]; const r = getRect();
+    el.style.left = Math.max(2, Math.min(98, sl+((t.clientX-sx)/r.width)*100)) + '%';
+    el.style.top  = Math.max(2, Math.min(98, st+((t.clientY-sy)/r.height)*100)) + '%';
   }, { passive: false });
-
   el.addEventListener('touchend', () => {
-
-    clearTimeout(longTimer);
-
-    el.style.zIndex = 5;
-
+    clearTimeout(longTimer); el.style.zIndex = 5;
     if (moved) saveState();
-
   }, { passive: true });
-
   el.addEventListener('mousedown', e => {
-
-    if (e.button !== 0) return;
-
-    e.preventDefault();
-
-    sx = e.clientX;
-    sy = e.clientY;
-
-    sl = parseFloat(el.style.left);
-    st = parseFloat(el.style.top);
-
+    if (e.button !== 0) return; e.preventDefault();
+    sx = e.clientX; sy = e.clientY;
+    sl = parseFloat(el.style.left); st = parseFloat(el.style.top);
     el.style.zIndex = 20;
-
     const move = e2 => {
-
       const r = getRect();
-
-      el.style.left =
-        Math.max(
-          2,
-          Math.min(
-            98,
-            sl + ((e2.clientX - sx) / r.width) * 100
-          )
-        ) + '%';
-
-      el.style.top =
-        Math.max(
-          2,
-          Math.min(
-            98,
-            st + ((e2.clientY - sy) / r.height) * 100
-          )
-        ) + '%';
+      el.style.left = Math.max(2, Math.min(98, sl+((e2.clientX-sx)/r.width)*100)) + '%';
+      el.style.top  = Math.max(2, Math.min(98, st+((e2.clientY-sy)/r.height)*100)) + '%';
     };
-
-    const up = () => {
-
-      el.style.zIndex = 5;
-
-      saveState();
-
-      document.removeEventListener('mousemove', move);
-
-      document.removeEventListener('mouseup', up);
-    };
-
+    const up = () => { el.style.zIndex = 5; saveState(); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
     document.addEventListener('mousemove', move);
-
     document.addEventListener('mouseup', up);
   });
 }
 
-// Save when tab/browser closes
-window.addEventListener('beforeunload', saveState);
-
-// Load saved state
 loadState();
-
 </script>
+</body>
+</html>
